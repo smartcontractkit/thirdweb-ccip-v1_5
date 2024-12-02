@@ -25,6 +25,9 @@ contract MyTokenTest is Test {
     uint256 ethSepoliaFork;
     uint256 baseSepoliaFork;
 
+    Register.NetworkDetails public ethSepoliaNetworkDetails;
+    Register.NetworkDetails public baseSepoliaNetworkDetails;
+
     address alice;
 
     function setUp() public {
@@ -54,13 +57,14 @@ contract MyTokenTest is Test {
     function test_supportNewCCIPToken() public {
         // Step 3) Deploy BurnMintTokenPool on Ethereum Sepolia
         vm.selectFork(ethSepoliaFork);
-        Register.NetworkDetails memory ethSepoliaNetworkDetails =
-            ccipLocalSimulatorFork.getNetworkDetails(block.chainid);
+        ethSepoliaNetworkDetails = ccipLocalSimulatorFork.getNetworkDetails(block.chainid);
         address[] memory allowlist = new address[](0);
 
         vm.startPrank(alice);
+        uint8 localTokenDecimals = 18;
         BurnMintTokenPool burnMintTokenPoolEthSepolia = new BurnMintTokenPool(
             IBurnMintERC20(address(myTokenEthSepolia)),
+            localTokenDecimals,
             allowlist,
             ethSepoliaNetworkDetails.rmnProxyAddress,
             ethSepoliaNetworkDetails.routerAddress
@@ -69,12 +73,12 @@ contract MyTokenTest is Test {
 
         // Step 4) Deploy BurnMintTokenPool on Base Sepolia
         vm.selectFork(baseSepoliaFork);
-        Register.NetworkDetails memory baseSepoliaNetworkDetails =
-            ccipLocalSimulatorFork.getNetworkDetails(block.chainid);
+        baseSepoliaNetworkDetails = ccipLocalSimulatorFork.getNetworkDetails(block.chainid);
 
         vm.startPrank(alice);
         BurnMintTokenPool burnMintTokenPoolBaseSepolia = new BurnMintTokenPool(
             IBurnMintERC20(address(myTokenBaseSepolia)),
+            localTokenDecimals,
             allowlist,
             baseSepoliaNetworkDetails.rmnProxyAddress,
             baseSepoliaNetworkDetails.routerAddress
@@ -156,15 +160,17 @@ contract MyTokenTest is Test {
 
         vm.startPrank(alice);
         TokenPool.ChainUpdate[] memory chains = new TokenPool.ChainUpdate[](1);
+        bytes[] memory remotePoolAddressesEthereumSepolia = new bytes[](1);
+        remotePoolAddressesEthereumSepolia[0] = abi.encode(address(burnMintTokenPoolBaseSepolia));
         chains[0] = TokenPool.ChainUpdate({
             remoteChainSelector: baseSepoliaNetworkDetails.chainSelector,
-            allowed: true,
-            remotePoolAddress: abi.encode(address(burnMintTokenPoolBaseSepolia)),
+            remotePoolAddresses: remotePoolAddressesEthereumSepolia,
             remoteTokenAddress: abi.encode(address(myTokenBaseSepolia)),
             outboundRateLimiterConfig: RateLimiter.Config({isEnabled: true, capacity: 100_000, rate: 167}),
             inboundRateLimiterConfig: RateLimiter.Config({isEnabled: true, capacity: 100_000, rate: 167})
         });
-        burnMintTokenPoolEthSepolia.applyChainUpdates(chains);
+        uint64[] memory remoteChainSelectorsToRemove = new uint64[](0);
+        burnMintTokenPoolEthSepolia.applyChainUpdates(remoteChainSelectorsToRemove, chains);
         vm.stopPrank();
 
         // Step 14) Configure Token Pool on Base Sepolia
@@ -172,15 +178,16 @@ contract MyTokenTest is Test {
 
         vm.startPrank(alice);
         chains = new TokenPool.ChainUpdate[](1);
+        bytes[] memory remotePoolAddressesBaseSepolia = new bytes[](1);
+        remotePoolAddressesBaseSepolia[0] = abi.encode(address(burnMintTokenPoolEthSepolia));
         chains[0] = TokenPool.ChainUpdate({
             remoteChainSelector: ethSepoliaNetworkDetails.chainSelector,
-            allowed: true,
-            remotePoolAddress: abi.encode(address(burnMintTokenPoolEthSepolia)),
+            remotePoolAddresses: remotePoolAddressesBaseSepolia,
             remoteTokenAddress: abi.encode(address(myTokenEthSepolia)),
             outboundRateLimiterConfig: RateLimiter.Config({isEnabled: true, capacity: 100_000, rate: 167}),
             inboundRateLimiterConfig: RateLimiter.Config({isEnabled: true, capacity: 100_000, rate: 167})
         });
-        burnMintTokenPoolBaseSepolia.applyChainUpdates(chains);
+        burnMintTokenPoolBaseSepolia.applyChainUpdates(remoteChainSelectorsToRemove, chains);
         vm.stopPrank();
 
         // Step 15) Mint tokens on Ethereum Sepolia and transfer them to Base Sepolia
