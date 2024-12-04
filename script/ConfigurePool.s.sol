@@ -24,10 +24,11 @@ contract ConfigurePoolScript is Script {
         BurnMintTokenPool localChain_burnMintTokenPool = BurnMintTokenPool(localChain_burnMintTokenPoolAddress);
 
         TokenPool.ChainUpdate[] memory chains = new TokenPool.ChainUpdate[](1);
+        bytes[] memory remotePoolAddresses = new bytes[](1);
+        remotePoolAddresses[0] = abi.encode(remoteChain_burnMintTokenPoolAddress);
         chains[0] = TokenPool.ChainUpdate({
             remoteChainSelector: remoteChain_chainSelector,
-            allowed: true,
-            remotePoolAddress: abi.encode(remoteChain_burnMintTokenPoolAddress),
+            remotePoolAddresses: remotePoolAddresses,
             remoteTokenAddress: abi.encode(remoteChain_tokenAddress),
             outboundRateLimiterConfig: RateLimiter.Config({
                 isEnabled: outboundRateLimiterIsEnabled,
@@ -41,7 +42,9 @@ contract ConfigurePoolScript is Script {
             })
         });
 
-        localChain_burnMintTokenPool.applyChainUpdates(chains);
+        uint64[] memory remoteChainSelectorsToRemove = new uint64[](0);
+
+        localChain_burnMintTokenPool.applyChainUpdates(remoteChainSelectorsToRemove, chains);
 
         vm.stopBroadcast();
     }

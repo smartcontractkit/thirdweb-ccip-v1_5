@@ -35,9 +35,14 @@ contract DeployTokenAndPoolScript is Script {
         myToken = new BurnMintERC677("My Token Burn And Mint", "MTBnM", 18, type(uint256).max);
 
         // Step 2) Deploy BurnMintTokenPool
+        uint8 localTokenDecimals = 18;
         address[] memory allowlist = new address[](0);
         BurnMintTokenPool burnMintTokenPool = new BurnMintTokenPool(
-            IBurnMintERC20(address(myToken)), allowlist, networkDetails.rmnProxyAddress, networkDetails.routerAddress
+            IBurnMintERC20(address(myToken)),
+            localTokenDecimals,
+            allowlist,
+            networkDetails.rmnProxyAddress,
+            networkDetails.routerAddress
         );
 
         // Step 3) Grant Mint and Burn roles to BurnMintTokenPool
